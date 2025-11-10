@@ -8,9 +8,20 @@ load_dotenv()
 # MongoDB connection
 def get_db():
     try:
-        mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+        # Check if MONGO_URI is explicitly set (allows full override)
+        mongo_uri = os.getenv('MONGO_URI')
+        
+        # If not set, construct MongoDB Atlas connection string
+        if not mongo_uri:
+            db_password = os.getenv('MONGO_PASSWORD') or os.getenv('DB_PASSWORD', '')
+            if not db_password:
+                raise ValueError("MONGO_PASSWORD or DB_PASSWORD environment variable must be set for MongoDB Atlas connection")
+            
+            # MongoDB Atlas connection string
+            mongo_uri = f"mongodb+srv://Phishingemail:{db_password}@cluster0.ch5a2f3.mongodb.net/"
+        
         db_name = os.getenv('DB_NAME', 'phishsim_auth')
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         db = client[db_name]
         # Test the connection
         client.server_info()
