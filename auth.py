@@ -6,6 +6,10 @@ import uuid
 from db import get_db
 from bson.objectid import ObjectId
 
+# Super Admin Configuration (hardcoded for permission granting only)
+SUPER_ADMIN_EMAIL = 'abdullahadmin@gmail.com'
+SUPER_ADMIN_PASSWORD = 'Assignment4'
+
 # User registration
 def register_user(user_data):
     db = get_db()
@@ -39,6 +43,11 @@ def register_user(user_data):
 # User login
 def login_user(login_data):
     db = get_db()
+    
+    # Block super admin from logging in (super admin is for permission only, not login)
+    email = login_data.get('email', '').strip().lower()
+    if email == SUPER_ADMIN_EMAIL.lower():
+        return {'error': 'This account is for permission granting only and cannot be used for login'}
     
     # Find user by email
     user = db.users.find_one({'email': login_data.get('email')})
@@ -114,6 +123,18 @@ def logout_user(token):
     
     return {'message': 'Logged out successfully'}
 
+def verify_super_admin(email, password):
+    """
+    Verify super admin credentials for permission granting only.
+    Super admin cannot login - this is only for permission verification.
+    """
+    if email and email.strip().lower() == SUPER_ADMIN_EMAIL.lower():
+        if password == SUPER_ADMIN_PASSWORD:
+            return {'valid': True, 'message': 'Super admin verified'}
+        else:
+            return {'valid': False, 'error': 'Invalid super admin password'}
+    return {'valid': False, 'error': 'Invalid super admin email'}
+
 # Permission request functions
 def create_permission_request(request_data):
     db = get_db()
@@ -176,13 +197,17 @@ def get_pending_permission_requests():
     
     return {'requests': requests}
 
-def review_permission_request(request_id, reviewer_id, action, comments=None):
-    db = get_db()
+def review_permission_request(request_id, reviewer_email, reviewer_password, action, comments=None):
+    """
+    Review permission request - ONLY super admin can approve/reject requests.
+    Regular admins cannot review permission requests.
+    """
+    # Verify that the reviewer is the super admin
+    super_admin_verify = verify_super_admin(reviewer_email, reviewer_password)
+    if not super_admin_verify.get('valid'):
+        return {'error': 'Only super admin can review permission requests. ' + super_admin_verify.get('error', 'Invalid credentials')}
     
-    # Verify reviewer is an admin
-    reviewer = db.users.find_one({'_id': ObjectId(reviewer_id), 'role': 'admin'})
-    if not reviewer:
-        return {'error': 'Only admins can review permission requests'}
+    db = get_db()
     
     # Get the permission request
     request = db.permission_requests.find_one({'request_id': request_id})
@@ -212,7 +237,7 @@ def review_permission_request(request_id, reviewer_id, action, comments=None):
                 {
                     '$set': {
                         'status': 'approved',
-                        'reviewed_by': str(reviewer['_id']),
+                        'reviewed_by': SUPER_ADMIN_EMAIL,
                         'reviewed_at': datetime.datetime.utcnow(),
                         'reviewer_comments': comments
                     }
@@ -231,7 +256,7 @@ def review_permission_request(request_id, reviewer_id, action, comments=None):
             {
                 '$set': {
                     'status': 'rejected',
-                    'reviewed_by': str(reviewer['_id']),
+                    'reviewed_by': SUPER_ADMIN_EMAIL,
                     'reviewed_at': datetime.datetime.utcnow(),
                     'reviewer_comments': comments
                 }

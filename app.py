@@ -15,7 +15,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from email_sender import send_email
 from auth import (register_user, login_user, logout_user, get_user_by_token,
                  create_permission_request, get_permission_request, get_pending_permission_requests,
-                 review_permission_request, verify_admin_credentials)
+                 verify_admin_credentials, verify_super_admin, SUPER_ADMIN_EMAIL)
 from middleware import token_required, login_required
 
 
@@ -200,36 +200,17 @@ def admin_permission():
         admin_email = request.form.get('email')
         admin_password = request.form.get('password')
         
-        # Check if admin exists
-        from auth import get_db
-        db = get_db()
+        # Verify super admin credentials (only super admin can grant permissions)
+        result = verify_super_admin(admin_email, admin_password)
         
-        # Check if any admin exists
-        admin_exists = db.users.find_one({'role': 'admin'})
-        
-        if not admin_exists:
-            # No admin exists, allow direct registration
-            return redirect(url_for('register_admin'))
-        
-        # Admin exists, verify credentials
-        login_data = {
-            'email': admin_email,
-            'password': admin_password
-        }
-        
-        result = login_user(login_data)
-        
-        if 'error' in result:
-            flash('Invalid admin credentials', 'danger')
+        if not result.get('valid'):
+            flash('Invalid super admin credentials. Only the super admin can grant permissions to create new admin accounts.', 'danger')
             return render_template('admin_permission.html')
         
-        # Check if user is admin
-        if result['user'].get('role') != 'admin':
-            flash('User is not an admin', 'danger')
-            return render_template('admin_permission.html')
-        
-        # Valid admin, allow registration
+        # Super admin verified, allow registration
         session['permission_granted'] = True
+        session['super_admin_verified'] = True
+        flash('Super admin verified. You can now create a new admin account.', 'success')
         return redirect(url_for('register_admin'))
     
     return render_template('admin_permission.html')
@@ -237,13 +218,10 @@ def admin_permission():
 # Admin registration route
 @app.route('/register-admin', methods=['GET', 'POST'])
 def register_admin():
-    # Check if permission was granted or no admin exists
-    from auth import get_db
-    db = get_db()
-    admin_exists = db.users.find_one({'role': 'admin'})
-    
-    if admin_exists and not session.get('permission_granted'):
-        flash('Permission required to create admin account', 'warning')
+    # Check if super admin permission was granted
+    # Always require super admin permission (even if no admin exists)
+    if not session.get('permission_granted') or not session.get('super_admin_verified'):
+        flash('Super admin permission required to create admin account', 'warning')
         return redirect(url_for('admin_permission'))
     
     if request.method == 'POST':
@@ -253,6 +231,11 @@ def register_admin():
             'password': request.form.get('password')
         }
         
+        # Prevent registering the super admin email as a regular admin
+        if user_data.get('email', '').strip().lower() == SUPER_ADMIN_EMAIL.lower():
+            flash('Cannot register the super admin email as a regular admin account.', 'danger')
+            return render_template('register.html')
+        
         # Register as admin
         user_data['role'] = 'admin'
         result = register_user(user_data)
@@ -261,8 +244,9 @@ def register_admin():
             flash(result['error'], 'danger')
             return render_template('register.html')
         
-        # Clear permission flag
+        # Clear permission flags
         session.pop('permission_granted', None)
+        session.pop('super_admin_verified', None)
         
         # Redirect to login page after successful registration
         flash('Admin account created successfully! Please login.', 'success')
@@ -283,55 +267,24 @@ def check_permission_status(request_id):
         'message': 'Your request is ' + result['request']['status']
     })
 
-# Admin permission requests review route
+# Admin permission requests review route - DISABLED: Only super admin can grant permissions
+# Regular admins cannot review permission requests anymore
 @app.route('/admin/permission-requests')
 @login_required
 def admin_permission_requests():
-    # Verify current user is admin
-    token = session.get('token')
-    user_result = get_user_by_token(token)
-    
-    if 'error' in user_result or user_result['user'].get('role') != 'admin':
-        flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('admin_dashboard'))
-    
-    result = get_pending_permission_requests()
-    
-    if 'error' in result:
-        return render_template('admin_permission_requests.html', error=result['error'])
-    
-    return render_template('admin_permission_requests.html', requests=result['requests'])
+    # This route is disabled - only super admin can grant permissions
+    flash('Permission request review is only available to super admin. Regular admins cannot review permission requests.', 'warning')
+    return redirect(url_for('admin_dashboard'))
 
-# Review permission request route
+# Review permission request route - DISABLED: Only super admin can review
+# Super admin doesn't login, so this route is not accessible through normal flow
+# Permission granting is done through /admin-permission route
 @app.route('/review-permission-request', methods=['POST'])
-@login_required
 def review_permission_request_route():
-    request_id = request.form.get('request_id')
-    action = request.form.get('action')
-    comments = request.form.get('comments')
-    
-    if not request_id or not action:
-        flash('Invalid request', 'danger')
-        return redirect(url_for('admin_permission_requests'))
-    
-    # Get current user ID
-    token = session.get('token')
-    user_result = get_user_by_token(token)
-    
-    if 'error' in user_result:
-        flash('Session error', 'danger')
-        return redirect(url_for('admin_permission_requests'))
-    
-    reviewer_id = user_result['user']['_id']
-    
-    result = review_permission_request(request_id, reviewer_id, action, comments)
-    
-    if 'error' in result:
-        flash(result['error'], 'danger')
-    else:
-        flash(result['message'], 'success')
-    
-    return redirect(url_for('admin_permission_requests'))
+    # This functionality is disabled
+    # Only super admin can grant permissions through /admin-permission route
+    flash('Only super admin can grant permissions. Please use the admin permission page.', 'warning')
+    return redirect(url_for('admin_permission'))
 
 
 
