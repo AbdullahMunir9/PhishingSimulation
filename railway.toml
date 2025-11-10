@@ -1,0 +1,14 @@
+# railway.toml — Python Flask (SMTP email) project
+
+[build]
+# Railway automatically detects Python projects, no build secrets needed
+builder = "python"
+
+[deploy]
+# Command to start your Flask app
+# Replace app.py with your actual entry file if different
+startCommand = "python app.py"
+
+[env]
+# Optional default port (Railway overrides this anyway)
+PORT = "5000"
