@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="phishsim-logo">
+        <span class="phishsim-logo-icon">🛡️</span> <a class="phishsim-logo-text" href="{{ url_for('frontpage') }}">PhishSim</a>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h1>Login</h1>
+        </div>
+        <div class="card-body">
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            {% if success %}
+            <div class="alert alert-success">{{ success }}</div>
+            {% endif %}
+            <form id="login-form" method="post" action="{{ url_for('admin_login') }}">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+            </form>
+            <div class="mt-2 text-center">
+                <span>Don't have an account?</span>
+                <a href="{{ url_for('register_page') }}">Register here</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

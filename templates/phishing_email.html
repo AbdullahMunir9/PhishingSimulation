@@ -1,0 +1,19 @@
+<!-- templates/phishing_email.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ heading or "Important Notice" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>{{ heading }}</h1>
+  <p>{{ body_text }}</p>
+  <p><a href="{{ link }}" class="button">{{ button_text }}</a></p>
+  <p style="font-size:12px;color:#999;margin-top:12px;">This is a simulated phishing test for security awareness.</p>
+
+  <!-- harmless transparent pixel so email clients don't request your server if you removed open tracking -->
+  <img src="{{ open_pixel }}" alt="" width="1" height="1" style="display:block;visibility:hidden" />
+</body>
+</html>

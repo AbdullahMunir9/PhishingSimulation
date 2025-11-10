@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>User Interaction Report</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+      color: white;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      opacity: 0.9;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+
+    .table-container {
+      padding: 2rem;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: none;
+    }
+
+    th {
+      background: #f7fafc;
+      color: #2d3748;
+      font-weight: 600;
+      text-align: left;
+      padding: 1rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid #e2e8f0;
+      color: #4a5568;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr {
+      transition: background-color 0.2s;
+    }
+
+    tbody tr:hover {
+      background-color: #f7fafc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .badge-default {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem 0.5rem;
+      }
+
+      .header {
+        padding: 1.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .stats {
+        gap: 0.75rem;
+      }
+
+      .stat-card {
+        min-width: calc(50% - 0.375rem);
+        padding: 0.875rem 1rem;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+      }
+
+      .table-container {
+        padding: 1rem;
+      }
+
+      table {
+        font-size: 0.875rem;
+      }
+
+      th, td {
+        padding: 0.75rem 0.5rem;
+      }
+
+      th {
+        font-size: 0.75rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        border-radius: 0;
+      }
+
+      table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1>User Interaction Report</h1>
+
+    <!-- Navigation Buttons -->
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <a href="{{ url_for('admin_dashboard') }}" 
+        style="background: transparent; 
+                color: white; 
+                padding: 12px 20px; 
+                border-radius: 8px; 
+                font-weight: 600; 
+                text-decoration: none; 
+                border: 3px solid rgba(0,0,0,0.4); 
+                font-size: 16px;
+                transition: 0.2s;">
+        ← Dashboard
+      </a>
+      <a href="{{ url_for('rewards') }}" 
+        style="background: rgba(255, 255, 255, 0.2);
+                backdrop-filter: blur(10px);
+                color: white; 
+                padding: 12px 20px; 
+                border-radius: 8px; 
+                font-weight: 600; 
+                text-decoration: none; 
+                border: 2px solid rgba(255, 255, 255, 0.3); 
+                font-size: 16px;
+                transition: 0.2s;">
+        🏆 View Rankings
+      </a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total Records</div>
+      <div class="stat-value">{{ total }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Clicks</div>
+      <div class="stat-value">{{ clicks }}</div>
+    </div>
+  </div>
+</div>
+
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Email</th>
+            <!-- <th>Opened</th> -->
+            <th>Clicked</th>
+            <!-- <th>Trained</th> -->
+            <th>First Seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for interaction in interactions %}
+          <tr>
+            <td>{{ interaction.id }}</td>
+            <td>{{ interaction.email }}</td>
+            <td>
+              {% if interaction.clicked_link %}
+                <span class="badge badge-success">Yes</span>
+              {% else %}
+                <span class="badge badge-default">No</span>
+              {% endif %}
+            </td>
+            <td>{{ interaction.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
