@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Check Permission Status{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="card">
+        <div class="card-header">
+            <h1>Check Permission Request Status</h1>
+            <p class="text-muted">Enter your request ID to check the status of your admin permission request</p>
+        </div>
+        <div class="card-body">
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            
+            {% if request_data %}
+                <div class="status-result">
+                    <h4>Request Details</h4>
+                    <table class="table">
+                        <tr>
+                            <td><strong>Request ID:</strong></td>
+                            <td>{{ request_data.request_id }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Username:</strong></td>
+                            <td>{{ request_data.username }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Email:</strong></td>
+                            <td>{{ request_data.email }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td>
+                                {% if request_data.status == 'pending' %}
+                                    <span class="badge badge-warning">Pending</span>
+                                {% elif request_data.status == 'approved' %}
+                                    <span class="badge badge-success">Approved</span>
+                                {% elif request_data.status == 'rejected' %}
+                                    <span class="badge badge-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Requested:</strong></td>
+                            <td>{{ request_data.created_at }}</td>
+                        </tr>
+                        {% if request_data.reviewed_at %}
+                        <tr>
+                            <td><strong>Reviewed:</strong></td>
+                            <td>{{ request_data.reviewed_at }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if request_data.reviewer_comments %}
+                        <tr>
+                            <td><strong>Comments:</strong></td>
+                            <td>{{ request_data.reviewer_comments }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                    
+                    {% if request_data.status == 'approved' %}
+                        <div class="alert alert-success">
+                            <strong>Congratulations!</strong> Your permission request has been approved.
+                            <br><a href="{{ url_for('user_login') }}" class="btn btn-sm btn-success mt-2">Login Now</a>
+                        </div>
+                    {% elif request_data.status == 'rejected' %}
+                        <div class="alert alert-danger">
+                            <strong>Sorry!</strong> Your permission request has been rejected.
+                            {% if request_data.reviewer_comments %}
+                            <br><strong>Reason:</strong> {{ request_data.reviewer_comments }}
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <strong>Status:</strong> Your request is pending review. Please check back later.
+                        </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <form method="get" action="{{ url_for('check_permission_status') }}">
+                    <div class="form-group">
+                        <label for="request_id">Request ID</label>
+                        <input type="text" class="form-control" id="request_id" name="request_id" placeholder="Enter your permission request ID" required>
+                        <small class="form-text text-muted">You received this ID when you submitted your permission request.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Check Status</button>
+                </form>
+            {% endif %}
+            
+            <div class="text-center mt-3">
+                <p><a href="{{ url_for('permission_request') }}" class="link">Submit New Permission Request</a></p>
+                <p><a href="{{ url_for('user_login') }}" class="link">Login</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Employee Rewards & Rankings</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+      color: white;
+      position: relative;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h1::before {
+      content: '🏆';
+      font-size: 2.5rem;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-top: 0.5rem;
+    }
+
+    .back-btn {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .leaderboard {
+      padding: 2rem;
+    }
+
+    .podium {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 1rem;
+      margin: 2rem 0;
+      padding: 2rem 0;
+      min-height: 300px;
+    }
+
+    .podium-item {
+      flex: 1;
+      max-width: 200px;
+      text-align: center;
+      position: relative;
+    }
+
+    .podium-place {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px 12px 0 0;
+      padding: 1.5rem;
+      color: white;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease;
+    }
+
+    .podium-item:hover .podium-place {
+      transform: translateY(-5px);
+    }
+
+    .podium-item.first .podium-place {
+      background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .podium-item.second .podium-place {
+      background: linear-gradient(135deg, #c0c0c0 0%, #808080 100%);
+      height: 150px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .podium-item.third .podium-place {
+      background: linear-gradient(135deg, #cd7f32 0%, #8b4513 100%);
+      height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .rank-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .podium-item.first .rank-number {
+      font-size: 3.5rem;
+    }
+
+    .podium-email {
+      font-size: 0.9rem;
+      opacity: 0.95;
+      word-break: break-word;
+      margin-bottom: 0.5rem;
+    }
+
+    .podium-clicks {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 0.5rem;
+    }
+
+    .podium-item.first .podium-clicks {
+      font-size: 2rem;
+    }
+    .podium-item.third .podium-clicks{
+      font-size: 1.2rem;
+      margin-top: -0.5rem;
+    }
+
+    .rank-badge {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-right: 1rem;
+    }
+
+    .rank-badge.gold {
+      background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    }
+
+    .rank-badge.silver {
+      background: linear-gradient(135deg, #c0c0c0 0%, #808080 100%);
+    }
+
+    .rank-badge.bronze {
+      background: linear-gradient(135deg, #cd7f32 0%, #8b4513 100%);
+    }
+
+    .employee-list {
+      margin-top: 3rem;
+    }
+
+    .employee-item {
+      background: #f7fafc;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .employee-item:hover {
+      background: #edf2f7;
+      border-color: #667eea;
+      transform: translateX(5px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    .employee-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .employee-details {
+      flex: 1;
+    }
+
+    .employee-email {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.25rem;
+    }
+
+    .employee-stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #718096;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .employee-score {
+      text-align: right;
+      margin-left: 1rem;
+    }
+
+    .score-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .score-label {
+      font-size: 0.85rem;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #718096;
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+      font-size: 1.2rem;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .podium {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .podium-item {
+        max-width: 100%;
+        width: 100%;
+      }
+
+      .podium-item.first .podium-place,
+      .podium-item.second .podium-place,
+      .podium-item.third .podium-place {
+        height: auto;
+        min-height: 120px;
+      }
+
+      .employee-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .employee-score {
+        margin-left: 0;
+        margin-top: 1rem;
+        width: 100%;
+        text-align: left;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-content">
+        <div>
+          <h1>Employee Rewards</h1>
+          <p class="subtitle">Rankings based on security awareness - fewer clicks = better rank</p>
+        </div>
+        <a href="{{ url_for('admin_dashboard') }}" class="back-btn">
+          ← Back to Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div class="leaderboard">
+      {% if employees %}
+        <!-- Top 3 Podium -->
+        {% if employees|length >= 3 %}
+        <div class="podium">
+          <div class="podium-item second">
+            <div class="podium-place">
+              <div class="rank-number">2</div>
+              <div class="podium-email">{{ employees[1].email }}</div>
+              <div class="podium-clicks">{{ employees[1].clicks }} clicks</div>
+            </div>
+          </div>
+          <div class="podium-item first">
+            <div class="podium-place">
+              <div class="rank-number">1</div>
+              <div class="podium-email">{{ employees[0].email }}</div>
+              <div class="podium-clicks">{{ employees[0].clicks }} clicks</div>
+            </div>
+          </div>
+          <div class="podium-item third">
+            <div class="podium-place">
+              <div class="rank-number">3</div>
+              <div class="podium-email">{{ employees[2].email }}</div>
+              <div class="podium-clicks">{{ employees[2].clicks }} clicks</div>
+            </div>
+          </div>
+        </div>
+        {% elif employees|length == 2 %}
+        <div class="podium">
+          <div class="podium-item second">
+            <div class="podium-place">
+              <div class="rank-number">2</div>
+              <div class="podium-email">{{ employees[1].email }}</div>
+              <div class="podium-clicks">{{ employees[1].clicks }} clicks</div>
+            </div>
+          </div>
+          <div class="podium-item first">
+            <div class="podium-place">
+              <div class="rank-number">1</div>
+              <div class="podium-email">{{ employees[0].email }}</div>
+              <div class="podium-clicks">{{ employees[0].clicks }} clicks</div>
+            </div>
+          </div>
+        </div>
+        {% elif employees|length == 1 %}
+        <div class="podium">
+          <div class="podium-item first">
+            <div class="podium-place">
+              <div class="rank-number">1</div>
+              <div class="podium-email">{{ employees[0].email }}</div>
+              <div class="podium-clicks">{{ employees[0].clicks }} clicks</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Full Leaderboard -->
+        <div class="employee-list">
+          {% for employee in employees %}
+          <div class="employee-item">
+            <div class="employee-info">
+              <div class="rank-badge {% if employee.rank == 1 %}gold{% elif employee.rank == 2 %}silver{% elif employee.rank == 3 %}bronze{% endif %}">
+                {{ employee.rank }}
+              </div>
+              <div class="employee-details">
+                <div class="employee-email">{{ employee.email }}</div>
+                <div class="employee-stats">
+                  <div class="stat-item">
+                    <span>📧</span>
+                    <span>{{ employee.opens }} opens</span>
+                  </div>
+                  <div class="stat-item">
+                    <span>🎯</span>
+                    <span>{{ employee.clicks }} clicks</span>
+                  </div>
+                  <div class="stat-item">
+                    <span>✅</span>
+                    <span>{{ employee.trained }} trained</span>
+                  </div>
+                  {% if employee.first_seen %}
+                  <div class="stat-item">
+                    <span>📅</span>
+                    <span>{{ employee.first_seen.strftime('%Y-%m-%d') }}</span>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="employee-score">
+              <div class="score-value">{{ employee.clicks }}</div>
+              <div class="score-label">Clicks (Lower is Better)</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon">🏆</div>
+          <h2>No Rankings Yet</h2>
+          <p class="empty-state-text">Start sending phishing simulation emails to see employee rankings!</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
+
