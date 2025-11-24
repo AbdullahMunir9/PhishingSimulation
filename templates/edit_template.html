@@ -15,7 +15,10 @@
 </nav>
 
 <div class="container py-4">
-  <h3>Edit Template</h3>
+  <div class="alert alert-info">
+    <strong>Note:</strong> Base templates are fixed. Your changes here will only apply to emails sent during this session and are temporary.
+  </div>
+  <h3>Customize Template (Temporary)</h3>
   <form method="post" action="{{ url_for('edit_template', template_id=template['id']) }}">
     <div class="mb-3">
       <label class="form-label">Card Title</label>
@@ -42,8 +45,13 @@
       <textarea class="form-control" name="body" rows="8">{{ template['body'] }}</textarea>
     </div>
 
-    <button class="btn btn-primary" type="submit">Save Template</button>
-    <a href="{{ url_for('select_template') }}" class="btn btn-secondary">Cancel</a>
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Save Customization (Temporary)</button>
+      <a href="{{ url_for('launch_page', template=template['id']) }}" class="btn btn-secondary">Cancel</a>
+      {% if has_customization %}
+      <a href="{{ url_for('clear_template_customization', template_id=template['id']) }}" class="btn btn-warning">Clear Customization</a>
+      {% endif %}
+    </div>
   </form>
 </div>
 </body>

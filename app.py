@@ -203,59 +203,109 @@ class Template(db.Model):
 # ---------------------- IN-MEMORY TEMPLATES (fallback) ----------------------
 TEMPLATES = {
     1: {
-        "subject": "Important IT Security Notice",
-        "heading": "IT Security: Action Required",
-        "body": ("Our systems detected suspicious activity on your account. "
-                 "Please verify your identity to avoid interruption."),
-        "button_text": "Verify Now"
+        "subject": "Security Update: Verification Required",
+        "heading": "Important Account Security Notice",
+        "body": (
+            "As part of our routine security checks, we detected activity that "
+            "requires verification to ensure your account remains secure. "
+            "Please review the recent activity and confirm your details to prevent "
+            "any disruption to your access."
+        ),
+        "button_text": "Review Activity"
     },
+
     2: {
-        "subject": "You've Won! Claim Your Prize",
-        "heading": "Congratulations — You Won!",
-        "body": ("You have been selected to receive a prize. Click below to claim "
-                 "your gift and provide delivery details."),
-        "button_text": "Claim Prize"
+        "subject": "Corporate Survey Invitation",
+        "heading": "We Value Your Feedback",
+        "body": (
+            "You have been selected to participate in our short internal survey "
+            "regarding recent service improvements. Your feedback is important and "
+            "will help us enhance our processes. The survey takes less than "
+            "two minutes to complete."
+        ),
+        "button_text": "Start Survey"
     },
+
     3: {
-        "subject": "Bank Alert: Confirm Your Account",
-        "heading": "Banking Security Notification",
-        "body": ("We noticed unusual login attempts. Confirm your account details "
-                 "immediately to secure your account."),
-        "button_text": "Confirm Account"
+        "subject": "Account Preferences Update Required",
+        "heading": "Banking & Authentication Policy Update",
+        "body": (
+            "Your banking authentication preferences require your review due to "
+            "an update in our security policies. Please take a moment to confirm "
+            "your information to ensure uninterrupted access to your account."
+        ),
+        "button_text": "Update Preferences"
     },
+
     4: {
-        "subject": "Invoice: Payment Required",
-        "heading": "Invoice Notice",
-        "body": ("A new invoice is pending payment. Please review the invoice and "
-                 "confirm payment instructions."),
-        "button_text": "View Invoice"
+        "subject": "New Invoice Available for Review",
+        "heading": "Your Monthly Statement Is Ready",
+        "body": (
+            "A new billing statement has been generated and is now available for "
+            "your review. Please verify the details at your earliest convenience. "
+            "If you notice any discrepancies, kindly report them immediately."
+        ),
+        "button_text": "View Statement"
+    },
+
+    5: {
+        "subject": "Cloud Storage Usage Notification",
+        "heading": "Cloud Services Storage Alert",
+        "body": (
+            "Your cloud storage allocation has reached its usage threshold. "
+            "To ensure continued access to file syncing, backups, and shared "
+            "workspaces, please review your current usage and adjust your storage "
+            "plan if necessary."
+        ),
+        "button_text": "Review Storage"
+    },
+
+    6: {
+        "subject": "Password Reset Confirmation Required",
+        "heading": "Password Reset Request Received",
+        "body": (
+            "We received a request to reset the password for your account. "
+            "If you initiated this request, please proceed with the confirmation "
+            "below. If you did not request a password reset, kindly notify the "
+            "IT department immediately to secure your account."
+        ),
+        "button_text": "Confirm Reset"
     }
 }
 
 # ---------------------- TEMPLATE DB HELPERS ----------------------
 def seed_default_templates():
     """
-    If no templates are present in DB, insert the ones from the in-memory TEMPLATES dict.
-    This runs on startup so the user sees the same 4 templates to start.
+    Ensure the 4 default templates always match the hard-coded definitions.
+    Runs on every startup so any previous DB edits are overwritten.
     """
-    existing = Template.query.count()
-    if existing == 0:
-        for tid, tpl in TEMPLATES.items():
-            t = Template(
-                id=tid,
-                title=tpl.get("heading") or tpl.get("subject") or f"Template {tid}",
-                subject=tpl.get("subject", ""),
-                heading=tpl.get("heading", ""),
-                body=tpl.get("body", ""),
-                button_text=tpl.get("button_text", "Open"),
-                preview=(tpl.get("body")[:200] if tpl.get("body") else tpl.get("subject"))
-            )
-            db.session.add(t)
-        db.session.commit()
+    for tid, tpl in TEMPLATES.items():
+        payload = {
+            "title": tpl.get("heading") or tpl.get("subject") or f"Template {tid}",
+            "subject": tpl.get("subject", ""),
+            "heading": tpl.get("heading", ""),
+            "body": tpl.get("body", ""),
+            "button_text": tpl.get("button_text", "Open"),
+            "preview": (tpl.get("body")[:200] if tpl.get("body") else tpl.get("subject"))
+        }
 
-def get_template_by_id(template_id, user_id=None):
+        existing = Template.query.get(tid)
+        if existing:
+            existing.title = payload["title"]
+            existing.subject = payload["subject"]
+            existing.heading = payload["heading"]
+            existing.body = payload["body"]
+            existing.button_text = payload["button_text"]
+            existing.preview = payload["preview"]
+        else:
+            t = Template(id=tid, **payload)
+            db.session.add(t)
+    db.session.commit()
+
+def get_template_by_id(template_id, user_id=None, use_overrides=False):
     """
     Return a template dict searching DB first, then fall back to in-memory TEMPLATES dict.
+    Base templates are fixed. Overrides are only used if use_overrides=True (for temporary customization).
     """
     try:
         tid = int(template_id)
@@ -281,7 +331,8 @@ def get_template_by_id(template_id, user_id=None):
     template_dict.setdefault('title', template_dict.get('heading') or template_dict.get('subject'))
     template_dict.setdefault('preview', compute_preview(template_dict.get('body'), template_dict.get('subject')))
 
-    if user_id:
+    # Only apply user overrides if explicitly requested (for temporary customization)
+    if use_overrides and user_id:
         override = get_user_template_override(user_id, tid)
         if override:
             for key in ('title', 'subject', 'heading', 'body', 'button_text', 'preview'):
@@ -494,16 +545,7 @@ def select_template():
                 "desc": (tpl.get('subject')[:120] + '...') if tpl.get('subject') and len(tpl.get('subject')) > 120 else tpl.get('subject'),
                 "preview": tpl.get('body')[:160] if tpl.get('body') else tpl.get('subject')
             })
-    user_id = get_current_user_id()
-    if user_id:
-        overrides = get_user_template_overrides_map(user_id)
-        for tpl in templates:
-            override = overrides.get(tpl["id"])
-            if override:
-                tpl["title"] = override.get("title", tpl["title"])
-                subject_for_desc = override.get("subject") or tpl.get("desc") or ""
-                tpl["desc"] = (subject_for_desc[:120] + '...') if subject_for_desc and len(subject_for_desc) > 120 else subject_for_desc
-                tpl["preview"] = override.get("preview", tpl["preview"])
+    # Base templates are fixed - no user overrides shown in selection
     return render_template("select_template.html", templates=templates)
 
 # Launch page: optional ?template=ID
@@ -514,12 +556,37 @@ def launch_page():
     template_id = request.args.get('template', type=int) or None
 
     selected = None
-    user_id = get_current_user_id()
     if template_id:
-        tpl = get_template_by_id(template_id, user_id=user_id)
+        # Get base template (no overrides)
+        tpl = get_template_by_id(template_id, use_overrides=False)
         if tpl:
             selected = {"id": tpl.get("id"), "subject": tpl.get("subject"), "heading": tpl.get("heading"), "body": tpl.get("body"), "button_text": tpl.get("button_text")}
+    
+    # Check for temporary customization in session
+    temp_customization = session.get('temp_template_customization', {})
+    if selected and selected.get("id") in temp_customization:
+        custom = temp_customization[selected["id"]]
+        if custom.get("subject"):
+            selected["subject"] = custom["subject"]
+        if custom.get("heading"):
+            selected["heading"] = custom["heading"]
+        if custom.get("body"):
+            selected["body"] = custom["body"]
+        if custom.get("button_text"):
+            selected["button_text"] = custom["button_text"]
+    
     return render_template('index.html', selected_template=selected)
+
+# Clear temporary template customizations
+@app.route('/template/clear-customization/<int:template_id>')
+@login_required
+def clear_template_customization(template_id):
+    temp_customization = session.get('temp_template_customization', {})
+    if template_id in temp_customization:
+        del temp_customization[template_id]
+        session['temp_template_customization'] = temp_customization
+        flash("Template customization cleared. Using base template.", "info")
+    return redirect(url_for('launch_page', template=template_id))
 
 # Send phishing email - uses template_id from JSON or form
 @app.route('/send_phishing_email', methods=['POST'])
@@ -543,11 +610,36 @@ def send_phishing_email():
 
     # Choose template (DB -> in-memory fallback -> default 1)
     tpl = None
-    user_id = get_current_user_id()
     if template_id:
-        tpl = get_template_by_id(template_id, user_id=user_id)
+        tpl = get_template_by_id(template_id, use_overrides=False)
     if not tpl:
-        tpl = get_template_by_id(1, user_id=user_id) or TEMPLATES.get(1)
+        tpl = get_template_by_id(1, use_overrides=False) or TEMPLATES.get(1)
+    
+    # Check for temporary customization in session or request data (for this specific simulation)
+    temp_customization = session.get('temp_template_customization', {})
+    temp_custom = data.get('template_customization') or {}
+    
+    # Priority: request data > session > base template
+    if template_id and template_id in temp_customization:
+        session_custom = temp_customization[template_id]
+        if not temp_custom.get('subject') and session_custom.get('subject'):
+            temp_custom['subject'] = session_custom['subject']
+        if not temp_custom.get('heading') and session_custom.get('heading'):
+            temp_custom['heading'] = session_custom['heading']
+        if not temp_custom.get('body') and session_custom.get('body'):
+            temp_custom['body'] = session_custom['body']
+        if not temp_custom.get('button_text') and session_custom.get('button_text'):
+            temp_custom['button_text'] = session_custom['button_text']
+    
+    if temp_custom:
+        if temp_custom.get('subject'):
+            tpl['subject'] = temp_custom['subject']
+        if temp_custom.get('heading'):
+            tpl['heading'] = temp_custom['heading']
+        if temp_custom.get('body'):
+            tpl['body'] = temp_custom['body']
+        if temp_custom.get('button_text'):
+            tpl['button_text'] = temp_custom['button_text']
 
     subject = tpl.get('subject', 'Important Notice')
     # Render phishing email with template values
@@ -577,7 +669,7 @@ def send_phishing_email():
         app.logger.exception("Failed to send email")
         return jsonify(message=f"Failed to send email: {str(e)}"), 500
 
-# Edit template page (GET shows form, POST saves)
+# Edit template page (GET shows form, POST saves to session for temporary customization)
 @app.route('/template/edit/<int:template_id>', methods=['GET', 'POST'])
 @login_required
 def edit_template(template_id):
@@ -601,69 +693,73 @@ def edit_template(template_id):
             flash("Template not found.", "danger")
             return redirect(url_for('select_template'))
 
-    user_id = get_current_user_id()
-    if not user_id:
-        flash("You must be logged in to edit templates.", "danger")
-        return redirect(url_for('select_template'))
-
     if request.method == 'POST':
         form = request.form or request.get_json() or {}
-        # Start from merged template (base + override) so unspecified fields stay
-        merged_template = get_template_by_id(template_id, user_id=user_id)
-        if not merged_template:
+        # Get base template (fixed)
+        base_template = get_template_by_id(template_id, use_overrides=False)
+        if not base_template:
             flash("Template not found.", "danger")
             return redirect(url_for('select_template'))
 
-        updated_template = {
-            'title': form.get('title') or merged_template.get('title'),
-            'subject': form.get('subject') or merged_template.get('subject'),
-            'heading': form.get('heading') or merged_template.get('heading'),
-            'body': form.get('body') or merged_template.get('body'),
-            'button_text': form.get('button_text') or merged_template.get('button_text')
+        # Save temporary customization to session (not permanent)
+        temp_customization = session.get('temp_template_customization', {})
+        temp_customization[template_id] = {
+            'subject': form.get('subject') or base_template.get('subject'),
+            'heading': form.get('heading') or base_template.get('heading'),
+            'body': form.get('body') or base_template.get('body'),
+            'button_text': form.get('button_text') or base_template.get('button_text')
         }
-        updated_template['preview'] = compute_preview(updated_template['body'], updated_template['subject'])
-        try:
-            save_user_template_override(user_id, template_id, updated_template)
-        except Exception as exc:
-            flash(f"Failed to save template: {exc}", "danger")
-            return redirect(url_for('select_template'))
-        flash("Template saved for your account.", "success")
-        return redirect(url_for('select_template'))
+        session['temp_template_customization'] = temp_customization
+        
+        flash("Template customized for this simulation. Changes are temporary and will only apply to emails sent during this session.", "success")
+        return redirect(url_for('launch_page', template=template_id))
 
-    template_data = get_template_by_id(template_id, user_id=user_id)
+    # Get base template (no overrides)
+    template_data = get_template_by_id(template_id, use_overrides=False)
     if not template_data:
         flash("Template not found.", "danger")
         return redirect(url_for('select_template'))
-    return render_template('edit_template.html', template=template_data)
+    
+    # Check if there's temporary customization in session
+    temp_customization = session.get('temp_template_customization', {})
+    has_customization = template_id in temp_customization
+    if has_customization:
+        custom = temp_customization[template_id]
+        template_data['subject'] = custom.get('subject', template_data.get('subject'))
+        template_data['heading'] = custom.get('heading', template_data.get('heading'))
+        template_data['body'] = custom.get('body', template_data.get('body'))
+        template_data['button_text'] = custom.get('button_text', template_data.get('button_text'))
+    
+    return render_template('edit_template.html', template=template_data, has_customization=has_customization)
 
-# Lightweight API endpoint to update template via AJAX/PUT
+# Lightweight API endpoint to update template via AJAX/PUT (temporary customization only)
 @app.route('/api/template/<int:template_id>', methods=['PUT'])
 @login_required
 def api_update_template(template_id):
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
     base_tpl = Template.query.get(template_id)
     if base_tpl is None and template_id not in TEMPLATES:
         return jsonify({"error": "Template not found"}), 404
     data = request.get_json() or {}
-    merged_template = get_template_by_id(template_id, user_id=user_id)
-    if not merged_template:
+    base_template = get_template_by_id(template_id, use_overrides=False)
+    if not base_template:
         return jsonify({"error": "Template not found"}), 404
-    updated_template = {
-        'title': data.get('title', merged_template.get('title')),
-        'subject': data.get('subject', merged_template.get('subject')),
-        'heading': data.get('heading', merged_template.get('heading')),
-        'body': data.get('body', merged_template.get('body')),
-        'button_text': data.get('button_text', merged_template.get('button_text'))
+    
+    # Save temporary customization to session (not permanent)
+    temp_customization = session.get('temp_template_customization', {})
+    temp_customization[template_id] = {
+        'subject': data.get('subject', base_template.get('subject')),
+        'heading': data.get('heading', base_template.get('heading')),
+        'body': data.get('body', base_template.get('body')),
+        'button_text': data.get('button_text', base_template.get('button_text'))
     }
-    updated_template['preview'] = compute_preview(updated_template['body'], updated_template['subject'])
-    try:
-        save_user_template_override(user_id, template_id, updated_template)
-    except Exception as exc:
-        return jsonify({"error": f"Failed to update template: {exc}"}), 500
-    refreshed = get_template_by_id(template_id, user_id=user_id)
-    return jsonify({"message": "Template updated", "template": refreshed}), 200
+    session['temp_template_customization'] = temp_customization
+    
+    # Return updated template with customization
+    refreshed = base_template.copy()
+    refreshed.update(temp_customization[template_id])
+    refreshed['preview'] = compute_preview(refreshed.get('body'), refreshed.get('subject'))
+    
+    return jsonify({"message": "Template customized for this simulation (temporary)", "template": refreshed}), 200
 
 # ---------------------- TRACKING / PIXEL / TRAINING ----------------------
 
