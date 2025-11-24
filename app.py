@@ -4,6 +4,7 @@ load_dotenv()
 import os
 import base64
 import hashlib
+from urllib.parse import urljoin
 from collections import defaultdict
 from datetime import datetime
 from flask import (
@@ -17,12 +18,14 @@ from auth import (register_user, login_user, logout_user, get_user_by_token,
                  create_permission_request, get_permission_request, get_pending_permission_requests,
                  verify_admin_credentials, verify_super_admin, SUPER_ADMIN_EMAIL)
 from middleware import token_required, login_required
+from db import get_db
 
 # ---------------------- CONFIG ----------------------
 SECRET_KEY = os.environ.get('SECRET_KEY', 'replace-this-in-prod')
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'replace-jwt-secret-in-prod')
 TOKEN_SALT = 'phish-link-salt'
 TOKEN_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
+EXTERNAL_BASE_URL = os.environ.get('EXTERNAL_BASE_URL', '').rstrip('/')
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'sqlite:///database.db')
@@ -51,6 +54,97 @@ def get_admin_id_int(admin_id_raw):
         # Convert first 8 hex chars to integer (max value: 0xFFFFFFFF = 4294967295)
         return int(hex_digest[:8], 16) % (10**9)  # Keep within reasonable range
     return 1
+
+
+def get_current_user_id():
+    """Return the logged-in Mongo user id (string) if available."""
+    user = session.get('user') or {}
+    user_id = user.get('_id') or user.get('id')
+    if user_id is None:
+        return None
+    return str(user_id)
+
+
+def build_external_url(endpoint, **values):
+    """
+    Build absolute URLs for emails. Uses EXTERNAL_BASE_URL if provided,
+    otherwise falls back to Flask's _external URL generation.
+    """
+    if EXTERNAL_BASE_URL:
+        relative = url_for(endpoint, _external=False, **values)
+        return urljoin(EXTERNAL_BASE_URL + '/', relative.lstrip('/'))
+    return url_for(endpoint, _external=True, **values)
+
+
+def _get_user_template_collection():
+    """Return MongoDB collection used for per-user templates."""
+    try:
+        mongo_db = get_db()
+    except Exception as exc:
+        app.logger.warning("MongoDB unavailable for templates: %s", exc)
+        return None
+    return mongo_db.user_templates
+
+
+def get_user_template_override(user_id, template_id):
+    """Fetch a user's customized template override, if it exists."""
+    if not user_id:
+        return None
+    collection = _get_user_template_collection()
+    if collection is None:
+        return None
+    doc = collection.find_one({'user_id': user_id, 'template_id': template_id})
+    if not doc:
+        return None
+    doc.pop('_id', None)
+    return doc
+
+
+def get_user_template_overrides_map(user_id):
+    """Return all overrides for a user as a dict keyed by template_id."""
+    if not user_id:
+        return {}
+    collection = _get_user_template_collection()
+    if collection is None:
+        return {}
+    overrides = {}
+    for doc in collection.find({'user_id': user_id}):
+        template_id = doc.get('template_id')
+        if template_id is not None:
+            doc = dict(doc)
+            doc.pop('_id', None)
+            overrides[template_id] = doc
+    return overrides
+
+
+def save_user_template_override(user_id, template_id, template_data):
+    """Persist a user's customized template into MongoDB."""
+    collection = _get_user_template_collection()
+    if collection is None:
+        raise ConnectionError("MongoDB is unavailable for saving templates")
+    payload = {
+        'user_id': user_id,
+        'template_id': template_id,
+        'title': template_data.get('title'),
+        'subject': template_data.get('subject'),
+        'heading': template_data.get('heading'),
+        'body': template_data.get('body'),
+        'button_text': template_data.get('button_text'),
+        'preview': template_data.get('preview'),
+        'updated_at': datetime.utcnow()
+    }
+    collection.update_one(
+        {'user_id': user_id, 'template_id': template_id},
+        {'$set': payload},
+        upsert=True
+    )
+
+
+def compute_preview(body_text, subject):
+    """Helper to build preview text consistent across stores."""
+    if body_text:
+        return body_text[:200]
+    return subject
 
 # data URI for a 1x1 transparent gif (used as harmless fallback for open_pixel)
 TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIABAP///wAAACwAAAAAAQABAAACAkQBADs="
@@ -159,7 +253,7 @@ def seed_default_templates():
             db.session.add(t)
         db.session.commit()
 
-def get_template_by_id(template_id):
+def get_template_by_id(template_id, user_id=None):
     """
     Return a template dict searching DB first, then fall back to in-memory TEMPLATES dict.
     """
@@ -169,18 +263,32 @@ def get_template_by_id(template_id):
         return None
 
     t = Template.query.get(tid)
+    template_dict = None
     if t:
-        return t.as_dict()
+        template_dict = t.as_dict()
     # fallback to in-memory
-    if tid in TEMPLATES:
-        t = TEMPLATES[tid].copy()
-        t['id'] = tid
-        # Ensure keys exist
-        t.setdefault('heading', '')
-        t.setdefault('body', '')
-        t.setdefault('button_text', 'Open')
-        return t
-    return None
+    elif tid in TEMPLATES:
+        template_dict = TEMPLATES[tid].copy()
+        template_dict['id'] = tid
+        template_dict.setdefault('heading', '')
+        template_dict.setdefault('body', '')
+        template_dict.setdefault('button_text', 'Open')
+
+    if not template_dict:
+        return None
+
+    template_dict.setdefault('id', tid)
+    template_dict.setdefault('title', template_dict.get('heading') or template_dict.get('subject'))
+    template_dict.setdefault('preview', compute_preview(template_dict.get('body'), template_dict.get('subject')))
+
+    if user_id:
+        override = get_user_template_override(user_id, tid)
+        if override:
+            for key in ('title', 'subject', 'heading', 'body', 'button_text', 'preview'):
+                if override.get(key) is not None:
+                    template_dict[key] = override[key]
+
+    return template_dict
 
 # ---------------------- DB INIT & SEED ----------------------
 with app.app_context():
@@ -386,6 +494,16 @@ def select_template():
                 "desc": (tpl.get('subject')[:120] + '...') if tpl.get('subject') and len(tpl.get('subject')) > 120 else tpl.get('subject'),
                 "preview": tpl.get('body')[:160] if tpl.get('body') else tpl.get('subject')
             })
+    user_id = get_current_user_id()
+    if user_id:
+        overrides = get_user_template_overrides_map(user_id)
+        for tpl in templates:
+            override = overrides.get(tpl["id"])
+            if override:
+                tpl["title"] = override.get("title", tpl["title"])
+                subject_for_desc = override.get("subject") or tpl.get("desc") or ""
+                tpl["desc"] = (subject_for_desc[:120] + '...') if subject_for_desc and len(subject_for_desc) > 120 else subject_for_desc
+                tpl["preview"] = override.get("preview", tpl["preview"])
     return render_template("select_template.html", templates=templates)
 
 # Launch page: optional ?template=ID
@@ -396,8 +514,9 @@ def launch_page():
     template_id = request.args.get('template', type=int) or None
 
     selected = None
+    user_id = get_current_user_id()
     if template_id:
-        tpl = get_template_by_id(template_id)
+        tpl = get_template_by_id(template_id, user_id=user_id)
         if tpl:
             selected = {"id": tpl.get("id"), "subject": tpl.get("subject"), "heading": tpl.get("heading"), "body": tpl.get("body"), "button_text": tpl.get("button_text")}
     return render_template('index.html', selected_template=selected)
@@ -420,14 +539,15 @@ def send_phishing_email():
 
     token = serializer.dumps(to_email, salt=TOKEN_SALT)
     # click link points to your tracking click endpoint
-    click_link = url_for('track_click', token=token, _external=True)
+    click_link = build_external_url('track_click', token=token)
 
     # Choose template (DB -> in-memory fallback -> default 1)
     tpl = None
+    user_id = get_current_user_id()
     if template_id:
-        tpl = get_template_by_id(template_id)
+        tpl = get_template_by_id(template_id, user_id=user_id)
     if not tpl:
-        tpl = get_template_by_id(1) or TEMPLATES.get(1)
+        tpl = get_template_by_id(1, user_id=user_id) or TEMPLATES.get(1)
 
     subject = tpl.get('subject', 'Important Notice')
     # Render phishing email with template values
@@ -461,9 +581,9 @@ def send_phishing_email():
 @app.route('/template/edit/<int:template_id>', methods=['GET', 'POST'])
 @login_required
 def edit_template(template_id):
+    # Ensure base template exists for fallback / display
     tpl = Template.query.get(template_id)
     if tpl is None:
-        # If not in DB, but present in in-memory TEMPLATES, create DB row first
         mem = TEMPLATES.get(template_id)
         if mem:
             tpl = Template(
@@ -481,39 +601,69 @@ def edit_template(template_id):
             flash("Template not found.", "danger")
             return redirect(url_for('select_template'))
 
-    if request.method == 'POST':
-        # Accept form or JSON
-        form = request.form or request.get_json() or {}
-        tpl.title = form.get('title') or tpl.title
-        tpl.subject = form.get('subject') or tpl.subject
-        tpl.heading = form.get('heading') or tpl.heading
-        tpl.body = form.get('body') or tpl.body
-        tpl.button_text = form.get('button_text') or tpl.button_text
-        tpl.preview = (tpl.body[:200] if tpl.body else tpl.subject)
-        db.session.commit()
-        flash("Template saved.", "success")
+    user_id = get_current_user_id()
+    if not user_id:
+        flash("You must be logged in to edit templates.", "danger")
         return redirect(url_for('select_template'))
 
-    # GET — render edit form
-    template_data = tpl.as_dict()
+    if request.method == 'POST':
+        form = request.form or request.get_json() or {}
+        # Start from merged template (base + override) so unspecified fields stay
+        merged_template = get_template_by_id(template_id, user_id=user_id)
+        if not merged_template:
+            flash("Template not found.", "danger")
+            return redirect(url_for('select_template'))
+
+        updated_template = {
+            'title': form.get('title') or merged_template.get('title'),
+            'subject': form.get('subject') or merged_template.get('subject'),
+            'heading': form.get('heading') or merged_template.get('heading'),
+            'body': form.get('body') or merged_template.get('body'),
+            'button_text': form.get('button_text') or merged_template.get('button_text')
+        }
+        updated_template['preview'] = compute_preview(updated_template['body'], updated_template['subject'])
+        try:
+            save_user_template_override(user_id, template_id, updated_template)
+        except Exception as exc:
+            flash(f"Failed to save template: {exc}", "danger")
+            return redirect(url_for('select_template'))
+        flash("Template saved for your account.", "success")
+        return redirect(url_for('select_template'))
+
+    template_data = get_template_by_id(template_id, user_id=user_id)
+    if not template_data:
+        flash("Template not found.", "danger")
+        return redirect(url_for('select_template'))
     return render_template('edit_template.html', template=template_data)
 
 # Lightweight API endpoint to update template via AJAX/PUT
 @app.route('/api/template/<int:template_id>', methods=['PUT'])
 @login_required
 def api_update_template(template_id):
-    tpl = Template.query.get(template_id)
-    if not tpl:
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    base_tpl = Template.query.get(template_id)
+    if base_tpl is None and template_id not in TEMPLATES:
         return jsonify({"error": "Template not found"}), 404
     data = request.get_json() or {}
-    tpl.title = data.get('title', tpl.title)
-    tpl.subject = data.get('subject', tpl.subject)
-    tpl.heading = data.get('heading', tpl.heading)
-    tpl.body = data.get('body', tpl.body)
-    tpl.button_text = data.get('button_text', tpl.button_text)
-    tpl.preview = (tpl.body[:200] if tpl.body else tpl.subject)
-    db.session.commit()
-    return jsonify({"message": "Template updated", "template": tpl.as_dict()}), 200
+    merged_template = get_template_by_id(template_id, user_id=user_id)
+    if not merged_template:
+        return jsonify({"error": "Template not found"}), 404
+    updated_template = {
+        'title': data.get('title', merged_template.get('title')),
+        'subject': data.get('subject', merged_template.get('subject')),
+        'heading': data.get('heading', merged_template.get('heading')),
+        'body': data.get('body', merged_template.get('body')),
+        'button_text': data.get('button_text', merged_template.get('button_text'))
+    }
+    updated_template['preview'] = compute_preview(updated_template['body'], updated_template['subject'])
+    try:
+        save_user_template_override(user_id, template_id, updated_template)
+    except Exception as exc:
+        return jsonify({"error": f"Failed to update template: {exc}"}), 500
+    refreshed = get_template_by_id(template_id, user_id=user_id)
+    return jsonify({"message": "Template updated", "template": refreshed}), 200
 
 # ---------------------- TRACKING / PIXEL / TRAINING ----------------------
 
