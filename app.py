@@ -146,6 +146,30 @@ def compute_preview(body_text, subject):
         return body_text[:200]
     return subject
 
+# Helper functions for session-based template customization
+# Flask sessions serialize to JSON, which requires string keys
+def _get_temp_customization(session):
+    """Get temporary template customization dict from session with string keys."""
+    return session.get('temp_template_customization', {})
+
+def _set_temp_customization(session, template_id, customization_data):
+    """Store temporary template customization in session with string key."""
+    temp_customization = _get_temp_customization(session)
+    temp_customization[str(template_id)] = customization_data
+    session['temp_template_customization'] = temp_customization
+
+def _get_template_customization(session, template_id):
+    """Get temporary customization for a specific template (returns None if not found)."""
+    temp_customization = _get_temp_customization(session)
+    return temp_customization.get(str(template_id))
+
+def _clear_template_customization(session, template_id):
+    """Remove temporary customization for a specific template."""
+    temp_customization = _get_temp_customization(session)
+    if str(template_id) in temp_customization:
+        del temp_customization[str(template_id)]
+        session['temp_template_customization'] = temp_customization
+
 # data URI for a 1x1 transparent gif (used as harmless fallback for open_pixel)
 TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIABAP///wAAACwAAAAAAQABAAACAkQBADs="
 
@@ -563,17 +587,17 @@ def launch_page():
             selected = {"id": tpl.get("id"), "subject": tpl.get("subject"), "heading": tpl.get("heading"), "body": tpl.get("body"), "button_text": tpl.get("button_text")}
     
     # Check for temporary customization in session
-    temp_customization = session.get('temp_template_customization', {})
-    if selected and selected.get("id") in temp_customization:
-        custom = temp_customization[selected["id"]]
-        if custom.get("subject"):
-            selected["subject"] = custom["subject"]
-        if custom.get("heading"):
-            selected["heading"] = custom["heading"]
-        if custom.get("body"):
-            selected["body"] = custom["body"]
-        if custom.get("button_text"):
-            selected["button_text"] = custom["button_text"]
+    if selected and selected.get("id"):
+        custom = _get_template_customization(session, selected["id"])
+        if custom:
+            if custom.get("subject"):
+                selected["subject"] = custom["subject"]
+            if custom.get("heading"):
+                selected["heading"] = custom["heading"]
+            if custom.get("body"):
+                selected["body"] = custom["body"]
+            if custom.get("button_text"):
+                selected["button_text"] = custom["button_text"]
     
     return render_template('index.html', selected_template=selected)
 
@@ -581,11 +605,8 @@ def launch_page():
 @app.route('/template/clear-customization/<int:template_id>')
 @login_required
 def clear_template_customization(template_id):
-    temp_customization = session.get('temp_template_customization', {})
-    if template_id in temp_customization:
-        del temp_customization[template_id]
-        session['temp_template_customization'] = temp_customization
-        flash("Template customization cleared. Using base template.", "info")
+    _clear_template_customization(session, template_id)
+    flash("Template customization cleared. Using base template.", "info")
     return redirect(url_for('launch_page', template=template_id))
 
 # Send phishing email - uses template_id from JSON or form
@@ -616,29 +637,32 @@ def send_phishing_email():
         tpl = get_template_by_id(1, use_overrides=False) or TEMPLATES.get(1)
     
     # Check for temporary customization in session or request data (for this specific simulation)
-    temp_customization = session.get('temp_template_customization', {})
     temp_custom = data.get('template_customization') or {}
     
     # Priority: request data > session > base template
-    if template_id and template_id in temp_customization:
-        session_custom = temp_customization[template_id]
-        if not temp_custom.get('subject') and session_custom.get('subject'):
-            temp_custom['subject'] = session_custom['subject']
-        if not temp_custom.get('heading') and session_custom.get('heading'):
-            temp_custom['heading'] = session_custom['heading']
-        if not temp_custom.get('body') and session_custom.get('body'):
-            temp_custom['body'] = session_custom['body']
-        if not temp_custom.get('button_text') and session_custom.get('button_text'):
-            temp_custom['button_text'] = session_custom['button_text']
+    if template_id:
+        session_custom = _get_template_customization(session, template_id)
+        if session_custom:
+            # Merge session customization with request data (request takes priority)
+            if not temp_custom.get('subject') and session_custom.get('subject'):
+                temp_custom['subject'] = session_custom['subject']
+            if not temp_custom.get('heading') and session_custom.get('heading'):
+                temp_custom['heading'] = session_custom['heading']
+            if not temp_custom.get('body') and session_custom.get('body'):
+                temp_custom['body'] = session_custom['body']
+            if not temp_custom.get('button_text') and session_custom.get('button_text'):
+                temp_custom['button_text'] = session_custom['button_text']
     
+    # Apply customizations to template (use customized values if provided)
     if temp_custom:
-        if temp_custom.get('subject'):
+        # Use customized values if they exist (even if empty, to allow clearing fields)
+        if 'subject' in temp_custom:
             tpl['subject'] = temp_custom['subject']
-        if temp_custom.get('heading'):
+        if 'heading' in temp_custom:
             tpl['heading'] = temp_custom['heading']
-        if temp_custom.get('body'):
+        if 'body' in temp_custom:
             tpl['body'] = temp_custom['body']
-        if temp_custom.get('button_text'):
+        if 'button_text' in temp_custom:
             tpl['button_text'] = temp_custom['button_text']
 
     subject = tpl.get('subject', 'Important Notice')
@@ -702,14 +726,13 @@ def edit_template(template_id):
             return redirect(url_for('select_template'))
 
         # Save temporary customization to session (not permanent)
-        temp_customization = session.get('temp_template_customization', {})
-        temp_customization[template_id] = {
+        customization_data = {
             'subject': form.get('subject') or base_template.get('subject'),
             'heading': form.get('heading') or base_template.get('heading'),
             'body': form.get('body') or base_template.get('body'),
             'button_text': form.get('button_text') or base_template.get('button_text')
         }
-        session['temp_template_customization'] = temp_customization
+        _set_temp_customization(session, template_id, customization_data)
         
         flash("Template customized for this simulation. Changes are temporary and will only apply to emails sent during this session.", "success")
         return redirect(url_for('launch_page', template=template_id))
@@ -721,10 +744,9 @@ def edit_template(template_id):
         return redirect(url_for('select_template'))
     
     # Check if there's temporary customization in session
-    temp_customization = session.get('temp_template_customization', {})
-    has_customization = template_id in temp_customization
+    custom = _get_template_customization(session, template_id)
+    has_customization = custom is not None
     if has_customization:
-        custom = temp_customization[template_id]
         template_data['subject'] = custom.get('subject', template_data.get('subject'))
         template_data['heading'] = custom.get('heading', template_data.get('heading'))
         template_data['body'] = custom.get('body', template_data.get('body'))
@@ -745,18 +767,17 @@ def api_update_template(template_id):
         return jsonify({"error": "Template not found"}), 404
     
     # Save temporary customization to session (not permanent)
-    temp_customization = session.get('temp_template_customization', {})
-    temp_customization[template_id] = {
+    customization_data = {
         'subject': data.get('subject', base_template.get('subject')),
         'heading': data.get('heading', base_template.get('heading')),
         'body': data.get('body', base_template.get('body')),
         'button_text': data.get('button_text', base_template.get('button_text'))
     }
-    session['temp_template_customization'] = temp_customization
+    _set_temp_customization(session, template_id, customization_data)
     
     # Return updated template with customization
     refreshed = base_template.copy()
-    refreshed.update(temp_customization[template_id])
+    refreshed.update(customization_data)
     refreshed['preview'] = compute_preview(refreshed.get('body'), refreshed.get('subject'))
     
     return jsonify({"message": "Template customized for this simulation (temporary)", "template": refreshed}), 200
