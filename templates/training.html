@@ -483,22 +483,45 @@
               </div>
               <div class="video-title">What is Phishing?</div>
             </div>
-
+        
             <div class="video-container">
               <div class="video-wrapper">
                 <iframe src="https://www.youtube.com/embed/ytJjyswLRTc" allowfullscreen></iframe>
               </div>
               <div class="video-title">Real-World Phishing Examples</div>
             </div>
-
+        
             <div class="video-container">
               <div class="video-wrapper">
                 <iframe src="https://www.youtube.com/embed/vqiRHdTx0pY" allowfullscreen></iframe>
               </div>
               <div class="video-title">Understanding Phishing Attacks</div>
             </div>
+        
+            <!-- NEW DUPLICATED VIDEOS -->
+            <div class="video-container">
+              <div class="video-wrapper">
+                <iframe src="https://www.youtube.com/embed/3GBmpqhQI8s" allowfullscreen></iframe>
+              </div>
+              <div class="video-title">Phishing Awareness Refresher</div>
+            </div>
+        
+            <div class="video-container">
+              <div class="video-wrapper">
+                <iframe src="https://www.youtube.com/embed/ytJjyswLRTc" allowfullscreen></iframe>
+              </div>
+              <div class="video-title">Phishing Examples (Part 2)</div>
+            </div>
+        
+            <div class="video-container">
+              <div class="video-wrapper">
+                <iframe src="https://www.youtube.com/embed/vqiRHdTx0pY" allowfullscreen></iframe>
+              </div>
+              <div class="video-title">Advanced Phishing Explained</div>
+            </div>
+        
           </div>
-        </div>
+        </div>        
       </div>
 
       <div>
@@ -595,112 +618,105 @@
 
   <script>
 const token = "{{ token }}";
-const quizData = [
-  {
-    q: "What’s the best first step if you receive a suspicious email?",
-    options: [
-      "Click the link to verify what it does",
-      "Forward it to your coworkers",
-      "Report it to IT/Security immediately",
-      "Reply asking if it’s real"
-    ],
-    correct: 2
-  },
-  {
-    q: "Which is a common sign of phishing?",
-    options: [
-      "Correct grammar and professional tone",
-      "Urgent request to update credentials",
-      "Email from your manager about a meeting",
-      "Using your name in greeting"
-    ],
-    correct: 1
-  },
-  {
-    q: "What should you check before clicking a link?",
-    options: [
-      "The time email was sent",
-      "The font color",
-      "The actual destination URL (hover first)",
-      "The background color"
-    ],
-    correct: 2
-  },
-  {
-    q: "What type of file is most suspicious in attachments?",
-    options: [
-      ".pdf",
-      ".jpg",
-      ".exe",
-      ".docx"
-    ],
-    correct: 2
-  },
-  {
-    q: "Phishing emails often:",
-    options: [
-      "Contain spelling errors and fake logos",
-      "Use encrypted communication",
-      "Come from official IT systems",
-      "Include no links or buttons"
-    ],
-    correct: 0
-  },
-  {
-    q: "Two-factor authentication (2FA) helps because:",
-    options: [
-      "It allows faster logins",
-      "It adds an extra layer of identity verification",
-      "It replaces the need for passwords",
-      "It hides your email address"
-    ],
-    correct: 1
-  },
-  {
-    q: "If you’re unsure about an email’s legitimacy, you should:",
-    options: [
-      "Delete it immediately without checking",
-      "Click links to confirm authenticity",
-      "Contact the organization via official channels",
-      "Ignore it forever"
-    ],
-    correct: 2
-  },
-  {
-    q: "Which greeting is more suspicious?",
-    options: [
-      "Hi Alex, please see attached invoice.",
-      "Dear Customer, urgent action required!",
-      "Meeting at 2pm today",
-      "Welcome to the new project team!"
-    ],
-    correct: 1
-  },
-  {
-    q: "What should you do after identifying a phishing email?",
-    options: [
-      "Report it and delete the email",
-      "Share it with colleagues for fun",
-      "Forward it to random addresses",
-      "Click unsubscribe"
-    ],
-    correct: 0
-  },
-  {
-    q: "Phishing primarily targets:",
-    options: [
-      "Only executives",
-      "All users, regardless of rank",
-      "Only IT staff",
-      "Only HR departments"
-    ],
-    correct: 1
-  }
+
+// --- FULL QUIZ BANK (20 QUESTIONS) ---
+const fullQuizBank = [
+  { q: "What’s the best first step if you receive a suspicious email?",
+    options: ["Click the link to verify what it does","Forward it to coworkers","Report it to IT/Security","Reply asking if it’s real"],
+    correct: 2 },
+
+  { q: "Which is a common sign of phishing?",
+    options: ["Correct grammar","Urgent request to update credentials","Email from your manager","Using your name in greeting"],
+    correct: 1 },
+
+  { q: "What should you check before clicking a link?",
+    options: ["Time sent","Font color","Actual destination URL","Background color"],
+    correct: 2 },
+
+  { q: "Most suspicious attachment type?",
+    options: [".pdf",".jpg",".exe",".docx"],
+    correct: 2 },
+
+  { q: "Phishing emails often:",
+    options: ["Contain spelling errors","Use encrypted communication","Come from official IT systems","Include no links"],
+    correct: 0 },
+
+  { q: "Why is 2FA helpful?",
+    options: ["Faster logins","Extra identity layer","Replaces passwords","Hides email address"],
+    correct: 1 },
+
+  { q: "If unsure about an email’s legitimacy:",
+    options: ["Delete immediately","Click links to confirm","Contact org via official channels","Ignore it forever"],
+    correct: 2 },
+
+  { q: "Which greeting is suspicious?",
+    options: ["Hi Alex","Dear Customer, urgent action required!","Meeting at 2pm","Welcome to team"],
+    correct: 1 },
+
+  { q: "What should you do after identifying phishing?",
+    options: ["Report + delete","Share for fun","Forward randomly","Click unsubscribe"],
+    correct: 0 },
+
+  { q: "Phishing targets:",
+    options: ["Only executives","All users","Only IT staff","Only HR"],
+    correct: 1 },
+
+  // ----- 10 NEW QUESTIONS -----
+
+  { q: "Which action increases risk?",
+    options: ["Using unique passwords","Clicking unknown links","Reporting suspicious emails","Updating software"],
+    correct: 1 },
+
+  { q: "A fake login page is an example of:",
+    options: ["Smishing","Pharming","Phishing","Spoofing"],
+    correct: 2 },
+
+  { q: "If an email requests gift cards urgently, it's likely:",
+    options: ["Normal request","Spam only","A phishing/social engineering attack","A system notice"],
+    correct: 2 },
+
+  { q: "Which URL is suspicious?",
+    options: ["https://paypal.com","https://paypa1.com.security-check.co","https://google.com","https://microsoft.com"],
+    correct: 1 },
+
+  { q: "What is 'spoofing'?",
+    options: ["Encrypting data","Pretending to be another identity","Installing antivirus","Scanning QR codes"],
+    correct: 1 },
+
+  { q: "You should NEVER share:",
+    options: ["Work schedule","Phone number","Password","Office location"],
+    correct: 2 },
+
+  { q: "A phishing attack goal is to:",
+    options: ["Reduce spam","Steal sensitive info","Fix accounts","Provide security training"],
+    correct: 1 },
+
+  { q: "Why hover over links?",
+    options: ["To activate the link","To see real destination","To refresh page","To copy text"],
+    correct: 1 },
+
+  { q: "Unexpected bank emails should be:",
+    options: ["Ignored forever","Clicked immediately","Verified through official website","Forwarded to friends"],
+    correct: 2 },
+
+  { q: "Which is safest?",
+    options: ["Using public WiFi for banking","Using strong unique passwords","Opening email attachments freely","Sharing login code"],
+    correct: 1 },
 ];
+
+// --- SELECT 10 RANDOM QUESTIONS ---
+let quizData = [];
+
+function generateRandomQuiz() {
+  quizData = [...fullQuizBank]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 10);
+}
 
 let currentQuestion = 0;
 let score = 0;
 let quizCompleted = false;
+
 const quizContainer = document.getElementById('quizContainer');
 const quizScore = document.getElementById('quizScore');
 const retakeBtn = document.getElementById('retakeQuiz');
@@ -721,8 +737,8 @@ function renderQuestion() {
       <p><strong>Q${currentQuestion + 1}. ${q.q}</strong></p>
       ${q.options.map((opt, i) => `
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="q${currentQuestion}" id="q${currentQuestion}_${i}" value="${i}">
-          <label class="form-check-label" for="q${currentQuestion}_${i}">${opt}</label>
+          <input class="form-check-input" type="radio" name="q${currentQuestion}" value="${i}">
+          <label class="form-check-label">${opt}</label>
         </div>`).join('')}
       <button class="btn btn-success btn-sm mt-2" onclick="checkAnswer()">Submit Answer</button>
     </div>
@@ -731,14 +747,12 @@ function renderQuestion() {
 
 function checkAnswer() {
   const selected = document.querySelector(`input[name="q${currentQuestion}"]:checked`);
-  if (!selected) return alert("Please select an answer before submitting.");
+  if (!selected) return alert("Please select an answer.");
 
   const answer = parseInt(selected.value);
-  if (answer === quizData[currentQuestion].correct) {
-    score++;
-    quizScore.innerHTML = `Score: ${score} / ${quizData.length}`;
-  }
+  if (answer === quizData[currentQuestion].correct) score++;
 
+  quizScore.innerHTML = `Score: ${score} / ${quizData.length}`;
   currentQuestion++;
   renderQuestion();
 }
@@ -747,22 +761,19 @@ function resetQuiz() {
   currentQuestion = 0;
   score = 0;
   quizCompleted = false;
-  quizScore.innerHTML = "Score: 0 / 10";
   retakeBtn.style.display = 'none';
+  quizScore.innerHTML = "Score: 0 / 10";
+
+  generateRandomQuiz();
   renderQuestion();
 }
 
 retakeBtn.addEventListener('click', resetQuiz);
 
-function sendTrainingProgress() {
-  fetch('/training/complete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: token, answers: score })
-  }).catch(err => console.error("Progress not saved:", err));
-}
-
+// INITIAL QUIZ GENERATION:
+generateRandomQuiz();
 renderQuestion();
+
 
 const completeBtn = document.getElementById('completeBtn');
 const status = document.getElementById('statusMessage');
