@@ -329,7 +329,7 @@
       <div class="header-content">
         <div>
           <h1>Employee Rewards</h1>
-          <p class="subtitle">Rankings based on security awareness - fewer clicks = better rank</p>
+          <p class="subtitle">Rankings based on security awareness issues - more clicks = higher rank</p>
         </div>
         <a href="{{ url_for('admin_dashboard') }}" class="back-btn">
           ← Back to Dashboard
@@ -427,7 +427,7 @@
             </div>
             <div class="employee-score">
               <div class="score-value">{{ employee.clicks }}</div>
-              <div class="score-label">Clicks (Lower is Better)</div>
+              <div class="score-label">Clicks (Higher is Better)</div>
             </div>
           </div>
           {% endfor %}

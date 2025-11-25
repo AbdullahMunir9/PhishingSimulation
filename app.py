@@ -1003,8 +1003,8 @@ def rewards():
                 'first_seen': stats['first_seen']
             })
 
-        # Sort by clicks ascending (fewer clicks = better), then by opens ascending, then by trained descending
-        ranked_employees.sort(key=lambda x: (x['clicks'], x['opens'], -x['trained']))
+        # Sort by clicks descending (more clicks = higher rank), then by opens descending, then by trained ascending
+        ranked_employees.sort(key=lambda x: (-x['clicks'], -x['opens'], x['trained']))
 
         # Assign ranks (handle ties)
         current_rank = 1
