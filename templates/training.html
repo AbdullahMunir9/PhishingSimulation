@@ -432,10 +432,67 @@
         gap: 12px;
       }
     }
+
+    .popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+
+    .popup-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 28px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+
+    .popup-card h3 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1c1e21;
+    }
+
+    .popup-card p {
+      font-size: 15px;
+      color: #4b4f56;
+      margin-bottom: 18px;
+    }
+
+    .popup-card button {
+      background: #4CAF50;
+      border: none;
+      color: #fff;
+      padding: 10px 26px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .popup-card button:hover {
+      background: #45a049;
+    }
   </style>
 </head>
 
 <body>
+  <div class="popup-overlay" id="simulationPopup" role="dialog" aria-modal="true" aria-labelledby="simulationPopupTitle">
+    <div class="popup-card">
+      <h3 id="simulationPopupTitle">Heads up! 👀</h3>
+      <p>This is a phishing simulation. Please review the training material below to learn how to spot and report suspicious emails.</p>
+      <button id="popupCloseBtn" type="button">Got it</button>
+    </div>
+  </div>
+
   <div class="top-bar">
     <div class="top-bar-content">
       <div>
@@ -618,6 +675,22 @@
 
   <script>
 const token = "{{ token }}";
+const cameFromSimulation = Boolean(token && token !== "None" && token.trim() !== "");
+
+if (cameFromSimulation) {
+  window.addEventListener('load', () => {
+    const popup = document.getElementById('simulationPopup');
+    const closeBtn = document.getElementById('popupCloseBtn');
+    if (popup && closeBtn) {
+      popup.style.display = 'flex';
+      const hidePopup = () => popup.style.display = 'none';
+      closeBtn.addEventListener('click', hidePopup);
+      popup.addEventListener('click', (evt) => {
+        if (evt.target === popup) hidePopup();
+      });
+    }
+  });
+}
 
 // --- FULL QUIZ BANK (20 QUESTIONS) ---
 const fullQuizBank = [
